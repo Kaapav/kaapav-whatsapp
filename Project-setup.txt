@@ -1,0 +1,81 @@
+├── worker/ # Cloudflare Worker Backend
+│ ├── wrangler.toml
+│ ├── package.json
+│ ├── schema.sql
+│ └── src/
+│ ├── index.js # Main router
+│ ├── config.js # Configuration
+│ ├── middleware/
+│ │ ├── auth.js
+│ │ ├── rateLimit.js
+│ │ └── cors.js
+│ ├── handlers/
+│ │ ├── webhook.js # WhatsApp webhook
+│ │ ├── auth.js # Authentication
+│ │ ├── chat.js # Chat operations
+│ │ ├── message.js # Send messages
+│ │ ├── order.js # Order management
+│ │ ├── product.js # Product catalog
+│ │ ├── payment.js # Razorpay integration
+│ │ ├── shipping.js # Shiprocket integration
+│ │ ├── broadcast.js # Campaign management
+│ │ ├── automation.js # Workflow automation
+│ │ └── analytics.js # Dashboard stats
+│ ├── services/
+│ │ ├── whatsapp.js # WhatsApp API
+│ │ ├── razorpay.js # Payment gateway
+│ │ ├── shiprocket.js # Shipping API
+│ │ └── push.js # Push notifications
+│ ├── flows/
+│ │ ├── orderFlow.js # Order conversation flow
+│ │ ├── catalogFlow.js # Product browsing flow
+│ │ └── supportFlow.js # Customer support flow
+│ └── cron/
+│ ├── cartRecovery.js # Abandoned cart
+│ ├── orderReminders.js # Payment reminders
+│ └── campaigns.js # Scheduled broadcasts
+│
+├── frontend/ # React PWA
+│ ├── public/
+│ │ ├── manifest.json
+│ │ ├── sw.js # Service Worker (offline)
+│ │ └── icons/
+│ ├── src/
+│ │ ├── main.jsx
+│ │ ├── App.jsx
+│ │ ├── index.css
+│ │ ├── api/
+│ │ │ └── index.js
+│ │ ├── store/
+│ │ │ └── index.js # Zustand stores
+│ │ ├── screens/
+│ │ │ ├── Login.jsx
+│ │ │ ├── Dashboard.jsx
+│ │ │ ├── Chats.jsx
+│ │ │ ├── ChatWindow.jsx
+│ │ │ ├── Orders.jsx
+│ │ │ ├── Products.jsx
+│ │ │ ├── Customers.jsx
+│ │ │ ├── Broadcasts.jsx
+│ │ │ ├── Analytics.jsx
+│ │ │ └── Settings.jsx
+│ │ ├── components/
+│ │ │ ├── BottomNav.jsx
+│ │ │ ├── ChatBubble.jsx
+│ │ │ ├── ProductCard.jsx
+│ │ │ ├── OrderCard.jsx
+│ │ │ ├── QuickReplies.jsx
+│ │ │ ├── MediaPicker.jsx
+│ │ │ └── PullToRefresh.jsx
+│ │ └── utils/
+│ │ ├── helpers.js
+│ │ ├── offline.js
+│ │ └── push.js
+│ ├── package.json
+│ ├── vite.config.js
+│ └── tailwind.config.js
+│
+└── docs/
+├── SETUP.md
+├── DEPLOYMENT.md
+└── API.md

@@ -1,0 +1,42 @@
+name = "kaapav-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "kaapav-db"
+database_id = "236ccd98-28d1-424c-a5c3-761e35869992"  # Get from: wrangler d1 create kaapav-db
+
+# KV for caching & sessions
+[[kv_namespaces]]
+binding = "KV"
+id = "2a8a79955860411eb62e216399ef4fc0"  # Get from: wrangler kv:namespace create KAAPAV_KV
+
+# R2 for media storage
+[[r2_buckets]]
+binding = "MEDIA" 
+bucket_name = "kaapav-media"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+WEBHOOK_VERIFY_TOKEN = "kaapav_verify_2024"
+APP_URL = "https://kaapav-api.kaapavin.workers.dev"
+
+# Cron triggers
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# WA_PHONE_ID
+# WA_TOKEN
+# WA_APP_SECRET
+# RAZORPAY_KEY_ID
+# RAZORPAY_KEY_SECRET
+# SHIPROCKET_EMAIL
+# SHIPROCKET_PASSWORD
+# VAPID_PUBLIC_KEY
+# VAPID_PRIVATE_KEY
+# JWT_SECRET

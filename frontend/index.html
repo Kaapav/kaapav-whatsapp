@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  
+  <!-- Primary Meta Tags -->
+  <title>KAAPAV Dashboard</title>
+  <meta name="title" content="KAAPAV Dashboard" />
+  <meta name="description" content="WhatsApp E-Commerce Dashboard for KAAPAV Fashion Jewellery" />
+  
+  <!-- Theme & PWA -->
+  <meta name="theme-color" content="#DBAC35" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="KAAPAV" />
+  
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="/icons/icon-32.png" sizes="32x32" />
+  <link rel="icon" type="image/png" href="/icons/icon-16.png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  
+  <!-- Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+  <!-- Splash Screens (iOS) -->
+  <link rel="apple-touch-startup-image" href="/splash/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px)" />
+  <link rel="apple-touch-startup-image" href="/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px)" />
+  <link rel="apple-touch-startup-image" href="/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px)" />
+  <link rel="apple-touch-startup-image" href="/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px)" />
+  
+  <style>
+    /* Critical CSS */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { 
+      background: #0a0a0a; 
+      color: #fff; 
+      font-family: system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Loading screen */
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+      z-index: 9999;
+    }
+    .loading-logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #DBAC35, #C49B2F);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: #000;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- Loading screen (replaced by React) -->
+    <div class="loading-screen">
+      <div class="loading-logo">K</div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

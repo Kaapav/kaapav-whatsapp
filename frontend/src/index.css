@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-dark text-white font-sans antialiased;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe areas for notched devices */
+.safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-200;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-dark-300;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOM COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply px-4 py-2.5 rounded-xl font-medium transition-all duration-200 
+           flex items-center justify-center gap-2 active:scale-95;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary text-black hover:bg-primary-dark;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-dark-200 text-white hover:bg-dark-300 border border-dark-300;
+  }
+  
+  .btn-danger {
+    @apply btn bg-danger/20 text-danger hover:bg-danger/30;
+  }
+  
+  .btn-success {
+    @apply btn bg-success/20 text-success hover:bg-success/30;
+  }
+  
+  /* Cards */
+  .card {
+    @apply bg-dark-100 rounded-2xl p-4 border border-dark-200;
+  }
+  
+  .card-hover {
+    @apply card hover:border-dark-300 transition-colors cursor-pointer;
+  }
+  
+  /* Inputs */
+  .input {
+    @apply w-full px-4 py-3 bg-dark-200 border border-dark-300 rounded-xl
+           text-white placeholder-gray-500 focus:outline-none focus:border-primary
+           transition-colors;
+  }
+  
+  .input-error {
+    @apply input border-danger focus:border-danger;
+  }
+  
+  /* Labels */
+  .label {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .label-primary {
+    @apply label bg-primary/20 text-primary;
+  }
+  
+  .label-success {
+    @apply label bg-success/20 text-success;
+  }
+  
+  .label-warning {
+    @apply label bg-warning/20 text-warning;
+  }
+  
+  .label-danger {
+    @apply label bg-danger/20 text-danger;
+  }
+  
+  .label-info {
+    @apply label bg-info/20 text-info;
+  }
+  
+  /* Status badges */
+  .status-pending { @apply label-warning; }
+  .status-confirmed { @apply label-info; }
+  .status-processing { @apply label-info; }
+  .status-shipped { @apply label-primary; }
+  .status-delivered { @apply label-success; }
+  .status-cancelled { @apply label-danger; }
+  .status-paid { @apply label-success; }
+  .status-unpaid { @apply label-danger; }
+  
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-dark-300 animate-pulse rounded;
+  }
+  
+  /* Chat bubbles */
+  .bubble-incoming {
+    @apply bg-dark-200 rounded-2xl rounded-bl-md;
+  }
+  
+  .bubble-outgoing {
+    @apply bg-primary/20 rounded-2xl rounded-br-md;
+  }
+  
+  /* Pull to refresh */
+  .pull-indicator {
+    @apply flex items-center justify-center py-4 text-gray-400;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #1a1a1a 0%,
+    #2a2a2a 50%,
+    #1a1a1a 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Message status icons */
+.message-sent { @apply text-gray-400; }
+.message-delivered { @apply text-info; }
+.message-read { @apply text-success; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE SPECIFIC
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* Disable text selection on buttons */
+button, .btn {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Input zoom prevention on iOS */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
