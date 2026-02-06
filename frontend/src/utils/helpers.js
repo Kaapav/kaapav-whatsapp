@@ -1,362 +1,323 @@
 /**
- * ════════════════════════════════════════════════════════════════
- * HELPER FUNCTIONS
- * Utility functions for the app
- * ════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════
+ * UTILITY HELPERS - Common Functions (FIXED)
+ * ═══════════════════════════════════════════════════════════════
  */
-
-// ═══════════════════════════════════════════════════════════════
-// FORMATTING
-// ═══════════════════════════════════════════════════════════════
 
 /**
- * Format currency
+ * Get initials from name
  */
-export function formatCurrency(amount, currency = 'INR') {
+export const getInitials = (name) => {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+/**
+ * Format currency (INR)
+ */
+export const formatCurrency = (amount, currency = 'INR') => {
+  if (amount === undefined || amount === null) return '';
+  
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
-}
+};
 
 /**
- * Format number with commas
+ * Format relative time (e.g., "2 min ago", "Yesterday")
  */
-export function formatNumber(num) {
-  return new Intl.NumberFormat('en-IN').format(num);
-}
+export const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return '';
 
-/**
- * Format phone number
- */
-export function formatPhone(phone) {
-  if (!phone) return '';
-  const cleaned = phone.toString().replace(/\D/g, '');
-  
-  // Indian phone format
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
-  }
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    return `+91 ${cleaned.slice(2, 7)} ${cleaned.slice(7)}`;
-  }
-  
-  return phone;
-}
-
-/**
- * Format relative time
- */
-export function formatRelativeTime(date) {
   const now = new Date();
-  const then = new Date(date);
-  const diff = now - then;
-  
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  
-  if (seconds < 60) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  
-  return then.toLocaleDateString('en-IN', { 
-    day: 'numeric', 
-    month: 'short' 
+  const date = new Date(timestamp);
+  const diffMs = now - date;
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffSecs < 60) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min`;
+  if (diffHours < 24) return `${diffHours} hr`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days`;
+
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
   });
-}
+};
 
 /**
- * Format file size
+ * Format time only (e.g., "10:30 AM")
  */
-export function formatFileSize(bytes) {
-  if (bytes === 0) return '0 B';
-  
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
+export const formatTime = (timestamp) => {
+  if (!timestamp) return '';
 
-// ═══════════════════════════════════════════════════════════════
-// VALIDATION
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Validate email
- */
-export function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-/**
- * Validate phone (Indian)
- */
-export function isValidPhone(phone) {
-  const cleaned = phone.replace(/\D/g, '');
-  return /^(91)?[6-9]\d{9}$/.test(cleaned);
-}
-
-/**
- * Validate pincode (Indian)
- */
-export function isValidPincode(pincode) {
-  return /^[1-9][0-9]{5}$/.test(pincode);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// STRING UTILITIES
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Truncate string
- */
-export function truncate(str, length = 50) {
-  if (!str) return '';
-  if (str.length <= length) return str;
-  return str.slice(0, length) + '...';
-}
-
-/**
- * Capitalize first letter
- */
-export function capitalize(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-/**
- * Get initials from name
- */
-export function getInitials(name) {
-  if (!name) return '?';
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-/**
- * Generate random ID
- */
-export function generateId(prefix = '') {
-  return prefix + Math.random().toString(36).substring(2, 10);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// COLOR UTILITIES
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Get color for status
- */
-export function getStatusColor(status) {
-  const colors = {
-    pending: 'warning',
-    confirmed: 'info',
-    processing: 'info',
-    shipped: 'primary',
-    delivered: 'success',
-    cancelled: 'danger',
-    paid: 'success',
-    unpaid: 'danger',
-    new: 'info',
-    returning: 'success',
-    loyal: 'primary',
-    vip: 'primary',
-  };
-  return colors[status] || 'gray';
-}
-
-/**
- * Get tier color
- */
-export function getTierGradient(tier) {
-  const gradients = {
-    bronze: 'from-amber-700 to-amber-900',
-    silver: 'from-gray-400 to-gray-600',
-    gold: 'from-yellow-400 to-yellow-600',
-    platinum: 'from-cyan-400 to-cyan-600',
-    diamond: 'from-purple-400 to-pink-500',
-  };
-  return gradients[tier] || 'from-dark-300 to-dark-400';
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ARRAY UTILITIES
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Group array by key
- */
-export function groupBy(array, key) {
-  return array.reduce((groups, item) => {
-    const value = item[key];
-    groups[value] = groups[value] || [];
-    groups[value].push(item);
-    return groups;
-  }, {});
-}
-
-/**
- * Sort array by key
- */
-export function sortBy(array, key, order = 'asc') {
-  return [...array].sort((a, b) => {
-    if (order === 'asc') {
-      return a[key] > b[key] ? 1 : -1;
-    }
-    return a[key] < b[key] ? 1 : -1;
+  return new Date(timestamp).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
-}
+};
 
 /**
- * Remove duplicates
+ * Format date (e.g., "Today", "Yesterday", "Oct 15")
  */
-export function unique(array, key) {
-  if (key) {
-    const seen = new Set();
-    return array.filter(item => {
-      const val = item[key];
-      if (seen.has(val)) return false;
-      seen.add(val);
-      return true;
-    });
+export const formatDate = (timestamp) => {
+  if (!timestamp) return '';
+
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
   }
-  return [...new Set(array)];
-}
 
-// ═══════════════════════════════════════════════════════════════
-// DEBOUNCE & THROTTLE
-// ═══════════════════════════════════════════════════════════════
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  }
+
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+  });
+};
+
+/**
+ * Format full datetime
+ */
+export const formatDateTime = (timestamp) => {
+  if (!timestamp) return '';
+
+  const date = new Date(timestamp);
+  const today = new Date();
+
+  if (date.toDateString() === today.toDateString()) {
+    return `Today, ${formatTime(timestamp)}`;
+  }
+
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+/**
+ * Get greeting based on time of day
+ */
+export const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
+/**
+ * Group messages by date - FIXED VERSION
+ * ✅ Handles undefined, null, non-arrays safely
+ * ✅ Prevents minification issues
+ */
+export const groupMessagesByDate = (messagesList) => {
+  // ✅ CRITICAL: Renamed parameter to avoid minification conflicts
+  // Create a new variable to work with
+  const messagesToGroup = messagesList;
+  
+  // ✅ Comprehensive safety checks
+  if (!messagesToGroup) {
+    return {};
+  }
+  
+  if (!Array.isArray(messagesToGroup)) {
+    console.warn('groupMessagesByDate: expected array, got:', typeof messagesToGroup);
+    return {};
+  }
+  
+  if (messagesToGroup.length === 0) {
+    return {};
+  }
+
+  const groupedByDate = {};
+
+  // ✅ Use try-catch to handle any runtime errors
+  try {
+    messagesToGroup.forEach((msg) => {
+      // ✅ Skip invalid messages
+      if (!msg || !msg.timestamp) {
+        return;
+      }
+      
+      try {
+        const dateKey = new Date(msg.timestamp).toDateString();
+        
+        if (!groupedByDate[dateKey]) {
+          groupedByDate[dateKey] = [];
+        }
+        
+        groupedByDate[dateKey].push(msg);
+      } catch (err) {
+        console.warn('Error processing message:', err);
+      }
+    });
+  } catch (err) {
+    console.error('groupMessagesByDate error:', err);
+    return {};
+  }
+
+  return groupedByDate;
+};
 
 /**
  * Debounce function
  */
-export function debounce(func, wait = 300) {
+export const debounce = (func, wait) => {
   let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
+  return (...args) => {
     clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+    timeout = setTimeout(() => func(...args), wait);
   };
-}
+};
 
 /**
  * Throttle function
  */
-export function throttle(func, limit = 300) {
+export const throttle = (func, limit) => {
   let inThrottle;
-  return function executedFunction(...args) {
+  return (...args) => {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
-      setTimeout(() => { inThrottle = false; }, limit);
+      setTimeout(() => (inThrottle = false), limit);
     }
   };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// STORAGE
-// ═══════════════════════════════════════════════════════════════
+};
 
 /**
- * Safe localStorage get
+ * Format phone number for display
  */
-export function getStorage(key, defaultValue = null) {
-  try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
-  } catch {
-    return defaultValue;
+export const formatPhoneDisplay = (phone) => {
+  if (!phone) return '';
+  
+  // Remove country code for display
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const number = digits.slice(2);
+    return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
   }
-}
+  
+  return phone;
+};
 
 /**
- * Safe localStorage set
+ * Generate random ID
  */
-export function setStorage(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Remove from localStorage
- */
-export function removeStorage(key) {
-  try {
-    localStorage.removeItem(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CLIPBOARD
-// ═══════════════════════════════════════════════════════════════
+export const generateId = () => {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
 
 /**
  * Copy to clipboard
  */
-export async function copyToClipboard(text) {
+export const copyToClipboard = async (text) => {
   try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-    
-    // Fallback
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for older browsers
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
     document.body.appendChild(textarea);
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
     return true;
+  }
+};
+
+/**
+ * Parse JSON safely
+ */
+export const safeJsonParse = (str, defaultValue = null) => {
+  try {
+    return str ? JSON.parse(str) : defaultValue;
   } catch {
-    return false;
+    return defaultValue;
   }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// URL UTILITIES
-// ═══════════════════════════════════════════════════════════════
+};
 
 /**
- * Parse query string
+ * Check if URL is valid image
  */
-export function parseQueryString(queryString) {
-  const params = new URLSearchParams(queryString);
-  const result = {};
-  for (const [key, value] of params) {
-    result[key] = value;
-  }
-  return result;
-}
+export const isValidImageUrl = (url) => {
+  if (!url) return false;
+  return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url) ||
+         url.includes('unsplash.com') ||
+         url.includes('cloudinary.com') ||
+         url.includes('imgix.net');
+};
 
 /**
- * Build query string
+ * Truncate text with ellipsis
  */
-export function buildQueryString(params) {
-  return Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join('&');
-}
+export const truncate = (text, length = 50) => {
+  if (!text || text.length <= length) return text;
+  return text.slice(0, length) + '...';
+};
+
+/**
+ * Escape HTML to prevent XSS
+ */
+export const escapeHtml = (text) => {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
+/**
+ * Calculate discount percentage
+ */
+export const calculateDiscount = (price, comparePrice) => {
+  if (!price || !comparePrice || comparePrice <= price) return 0;
+  return Math.round(((comparePrice - price) / comparePrice) * 100);
+};
+
+/**
+ * Validate email
+ */
+export const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+/**
+ * Validate Indian phone number
+ */
+export const isValidPhone = (phone) => {
+  const digits = phone?.replace(/\D/g, '') || '';
+  return digits.length === 10 || (digits.length === 12 && digits.startsWith('91'));
+};
+
+/**
+ * Format file size
+ */
+export const formatFileSize = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};

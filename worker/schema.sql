@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS messages (
     -- Interactive
     button_id TEXT,
     button_text TEXT,
+    buttons TEXT,
+    is_menu INTEGER DEFAULT 0,
     list_id TEXT,
     list_title TEXT,
     
@@ -598,6 +600,28 @@ CREATE TABLE IF NOT EXISTS pincodes (
     
     courier_priority TEXT DEFAULT '[]'
 );
+ 
+-- ────────────────────────────────────────────────────────────────
+-- SETTINGS
+-- ────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    value TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Default Settings
+INSERT OR IGNORE INTO settings (key, value) VALUES 
+('business_name', '"KAAPAV Fashion Jewellery"'),
+('business_phone', '"919148330016"'),
+('business_email', '"kaapavin@gmail.com"'),
+('business_address', '"India"'),
+('ai_auto_reply', 'true'),
+('auto_greeting', 'true'),
+('business_hours_enabled', 'false'),
+('business_hours', '{"start": "10:00", "end": "19:00"}'),
+('away_message', '"We are currently away. We will respond shortly!"');
 
 -- ════════════════════════════════════════════════════════════════
 -- INDEXES

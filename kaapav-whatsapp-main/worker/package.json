@@ -1,0 +1,12 @@
+{
+  "name": "kaapav-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create kaapav-db",
+    "db:init": "wrangler d1 execute kaapav-db --file=schema.sql",
+    "db:init:local": "wrangler d1 execute kaapav-db --local --file=schema.sql"
+  }
+}

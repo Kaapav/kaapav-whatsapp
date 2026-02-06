@@ -1,348 +1,993 @@
 /**
- * ════════════════════════════════════════════════════════════════
- * CHAT BUBBLE
- * Message bubble with support for various content types
- * ════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════
+ * KAAPAV CHAT BUBBLE - LEGENDARY EDITION
+ * Gold & White Theme | Production Ready
+ * ═══════════════════════════════════════════════════════════════
  */
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  FiCheck, FiCheckCheck, FiClock, FiAlertCircle,
-  FiImage, FiFile, FiMic, FiMapPin, FiPlay,
-  FiDownload, FiExternalLink
-} from 'react-icons/fi';
-import { format } from 'date-fns';
+import React, { useState, memo } from 'react';
+import { formatTime, formatCurrency } from '../utils/helpers';
 
 // ═══════════════════════════════════════════════════════════════
-// STATUS ICON
+// THEME CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
+const THEME = {
+  // Gold palette
+  gold: '#C49432',
+  goldLight: '#D4A84B',
+  goldDark: '#A67C28',
+  goldGradient: 'linear-gradient(135deg, #D4A84B 0%, #C49432 100%)',
+  goldShadow: '0 4px 12px rgba(196, 148, 50, 0.3)',
+  
+  // Neutrals
+  white: '#FFFFFF',
+  cream: '#FBF8F1',
+  dark: '#1A1A1A',
+  darkSoft: '#374151',
+  gray: '#6B7280',
+  grayLight: '#9CA3AF',
+  border: '#E5E7EB',
+  
+  // Shadows
+  shadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+  shadowMd: '0 4px 12px rgba(0, 0, 0, 0.12)',
+  
+  // Status colors
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  info: '#3B82F6',
+  purple: '#8B5CF6',
+};
 
-function StatusIcon({ status }) {
-  switch (status) {
-    case 'read':
-      return <FiCheckCheck size={14} className="text-success" />;
-    case 'delivered':
-      return <FiCheckCheck size={14} className="text-gray-400" />;
-    case 'sent':
-      return <FiCheck size={14} className="text-gray-400" />;
-    case 'sending':
-      return <FiClock size={14} className="text-gray-500 animate-pulse" />;
-    case 'failed':
-      return <FiAlertCircle size={14} className="text-danger" />;
-    default:
-      return null;
+// Order status colors
+const STATUS_COLORS = {
+  pending: { bg: '#FEF3C7', color: '#D97706', icon: '⏳' },
+  confirmed: { bg: '#DBEAFE', color: '#2563EB', icon: '✅' },
+  processing: { bg: '#EDE9FE', color: '#7C3AED', icon: '⚙️' },
+  shipped: { bg: '#CFFAFE', color: '#0891B2', icon: '🚚' },
+  delivered: { bg: '#D1FAE5', color: '#059669', icon: '📦' },
+  cancelled: { bg: '#FEE2E2', color: '#DC2626', icon: '❌' },
+};
+
+// File type icons
+const FILE_ICONS = {
+  PDF: { icon: 'fa-file-pdf', color: '#DC2626' },
+  DOC: { icon: 'fa-file-word', color: '#2563EB' },
+  DOCX: { icon: 'fa-file-word', color: '#2563EB' },
+  XLS: { icon: 'fa-file-excel', color: '#059669' },
+  XLSX: { icon: 'fa-file-excel', color: '#059669' },
+  PPT: { icon: 'fa-file-powerpoint', color: '#D97706' },
+  PPTX: { icon: 'fa-file-powerpoint', color: '#D97706' },
+  ZIP: { icon: 'fa-file-archive', color: '#7C3AED' },
+  RAR: { icon: 'fa-file-archive', color: '#7C3AED' },
+  DEFAULT: { icon: 'fa-file', color: '#6B7280' },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ANIMATION STYLES
+// ═══════════════════════════════════════════════════════════════
+const animations = `
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
   }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+`;
+
+// Inject animations
+if (typeof document !== 'undefined' && !document.getElementById('chat-bubble-animations')) {
+  const style = document.createElement('style');
+  style.id = 'chat-bubble-animations';
+  style.textContent = animations;
+  document.head.appendChild(style);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// IMAGE MESSAGE
+// MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
+const ChatBubble = memo(function ChatBubble({ message, onButtonClick }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [buttonHover, setButtonHover] = useState(null);
 
-function ImageMessage({ url, caption, onClick }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  
-  return (
-    <div className="space-y-2">
-      <div 
-        className="relative rounded-xl overflow-hidden cursor-pointer max-w-[280px]"
-        onClick={onClick}
-      >
-        {isLoading && (
-          <div className="absolute inset-0 bg-dark-300 animate-pulse flex items-center justify-center">
-            <FiImage size={32} className="text-gray-500" />
-          </div>
-        )}
-        {hasError ? (
-          <div className="w-full h-40 bg-dark-300 flex items-center justify-center">
-            <FiAlertCircle size={32} className="text-gray-500" />
-          </div>
-        ) : (
-          <img
-            src={url}
-            alt="Image"
-            className="w-full h-auto max-h-80 object-cover"
-            onLoad={() => setIsLoading(false)}
-            onError={() => { setIsLoading(false); setHasError(true); }}
-          />
-        )}
-      </div>
-      {caption && <p className="text-sm">{caption}</p>}
-    </div>
-  );
-}
+  if (!message) return null;
 
-// ═══════════════════════════════════════════════════════════════
-// DOCUMENT MESSAGE
-// ═══════════════════════════════════════════════════════════════
+  // Destructure message properties
+  const {
+    text,
+    message_type,
+    direction,
+    status,
+    timestamp,
+    media_url,
+    media_caption,
+    product,
+    order,
+    buttons,
+    button_text,
+    button_id,
+    is_auto_reply,
+    is_menu,
+  } = message;
 
-function DocumentMessage({ url, filename, caption }) {
-  return (
-    <div className="space-y-2">
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-3 p-3 bg-dark-300/50 rounded-xl hover:bg-dark-300 transition-colors"
-      >
-        <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-          <FiFile size={20} className="text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{filename || 'Document'}</p>
-          <p className="text-xs text-gray-400">Tap to open</p>
-        </div>
-        <FiDownload size={18} className="text-gray-400" />
-      </a>
-      {caption && <p className="text-sm">{caption}</p>}
-    </div>
-  );
-}
+  // Direction detection (handle both formats)
+  const isOutgoing = direction === 'outgoing' || direction === 'out';
+  const isIncoming = !isOutgoing;
 
-// ═══════════════════════════════════════════════════════════════
-// AUDIO MESSAGE
-// ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // PARSE BUTTONS FROM VARIOUS FORMATS
+  // ═══════════════════════════════════════════════════════════════
+  const parseButtons = () => {
+  // If buttons exists
+  if (buttons) {
+    // Already an array
+    if (Array.isArray(buttons)) return buttons;
+    
+    // String - try to parse as JSON
+    if (typeof buttons === 'string') {
+      try {
+        const parsed = JSON.parse(buttons);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.warn('Button parse failed:', e.message);
+      }
+    }
+  }
 
-function AudioMessage({ url }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  
-  return (
-    <div className="flex items-center gap-3 min-w-[200px]">
-      <button
-        onClick={() => setIsPlaying(!isPlaying)}
-        className="w-10 h-10 bg-primary rounded-full flex items-center justify-center"
-      >
-        {isPlaying ? (
-          <div className="flex gap-0.5">
-            <div className="w-1 h-4 bg-black rounded animate-pulse" />
-            <div className="w-1 h-4 bg-black rounded animate-pulse" style={{ animationDelay: '0.1s' }} />
-          </div>
-        ) : (
-          <FiPlay size={18} className="text-black ml-0.5" />
-        )}
-      </button>
-      <div className="flex-1">
-        <div className="h-1 bg-dark-300 rounded-full overflow-hidden">
-          <div className="h-full bg-primary w-0 transition-all" style={{ width: isPlaying ? '60%' : '0%' }} />
-        </div>
-        <p className="text-xs text-gray-400 mt-1">0:00 / 0:30</p>
-      </div>
-    </div>
-  );
-}
+  // Fallback: parse from button_text (pipe-separated)
+  if (button_text && typeof button_text === 'string') {
+    const titles = button_text.split('|').map(t => t.trim()).filter(Boolean);
+    if (titles.length > 0) {
+      return titles.map((title, idx) => ({
+        id: `btn_${idx}`,
+        title: title,
+        text: title,
+      }));
+    }
+  }
 
-// ═══════════════════════════════════════════════════════════════
-// LOCATION MESSAGE
-// ═══════════════════════════════════════════════════════════════
+  return null;
+};
 
-function LocationMessage({ latitude, longitude, name, address }) {
-  const mapUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-  const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=15&size=300x150&markers=${latitude},${longitude}`;
-  
-  return (
-    <a
-      href={mapUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block"
-    >
-      <div className="bg-dark-300/50 rounded-xl overflow-hidden">
-        <div className="w-full h-32 bg-dark-300 flex items-center justify-center">
-          <FiMapPin size={32} className="text-primary" />
-        </div>
-        <div className="p-3">
-          <p className="font-medium">{name || 'Location'}</p>
-          {address && <p className="text-sm text-gray-400">{address}</p>}
-          <p className="text-xs text-primary mt-1 flex items-center gap-1">
-            <FiExternalLink size={12} /> Open in Maps
-          </p>
-        </div>
-      </div>
-    </a>
-  );
-}
+  // ═══════════════════════════════════════════════════════════════
+  // EXTRACT DISPLAY TEXT
+  // ═══════════════════════════════════════════════════════════════
+  const getDisplayText = () => {
+    if (!text) return '';
 
-// ═══════════════════════════════════════════════════════════════
-// INTERACTIVE BUTTONS
-// ═══════════════════════════════════════════════════════════════
+    // If text is a string
+    if (typeof text === 'string') {
+      const trimmed = text.trim();
 
-function ButtonsMessage({ text, buttons }) {
-  return (
-    <div className="space-y-2">
-      <p>{text}</p>
-      <div className="flex flex-wrap gap-2 mt-2">
-        {buttons?.map((btn, i) => (
-          <span
-            key={i}
-            className="px-3 py-1.5 bg-dark-300/50 rounded-lg text-sm text-primary border border-dark-300"
-          >
-            {btn.title || btn.text}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+      // Try to parse JSON
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return extractFromParsed(parsed);
+        } catch {
+          // Remove button markers from text like "[Button1] [Button2]"
+          return trimmed.replace(/\[([^\]]+)\]/g, '').trim();
+        }
+      }
 
-// ═══════════════════════════════════════════════════════════════
-// TEMPLATE MESSAGE
-// ═══════════════════════════════════════════════════════════════
+      // Remove button markers
+      return trimmed.replace(/\[([^\]]+)\]/g, '').trim();
+    }
 
-function TemplateMessage({ templateName, text }) {
-  return (
-    <div className="space-y-1">
-      <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
-        Template: {templateName}
+    // If text is an object
+    if (typeof text === 'object') {
+      return extractFromParsed(text);
+    }
+
+    return String(text);
+  };
+
+  const extractFromParsed = (obj) => {
+    if (!obj) return '';
+
+    // Interactive messages
+    if (obj.interactive) {
+      const i = obj.interactive;
+      if (i.button_reply?.title) return i.button_reply.title;
+      if (i.list_reply?.title) return i.list_reply.title;
+      if (i.body?.text) return i.body.text;
+      return '📱 Interactive';
+    }
+
+    // Text body
+    if (obj.text?.body) return obj.text.body;
+    if (obj.body?.text) return obj.body.text;
+    if (typeof obj.body === 'string') return obj.body;
+    if (typeof obj.text === 'string') return obj.text;
+
+    // Media captions
+    if (obj.caption) return obj.caption;
+    if (obj.image?.caption) return obj.image.caption;
+
+    // Media types
+    if (obj.image) return '📷 Photo';
+    if (obj.video) return '🎥 Video';
+    if (obj.audio) return '🎵 Audio';
+    if (obj.voice) return '🎤 Voice';
+    if (obj.document) return `📄 ${obj.document.filename || 'Document'}`;
+    if (obj.sticker) return '🎭 Sticker';
+    if (obj.location) return `📍 ${obj.location.name || 'Location'}`;
+    if (obj.contacts) return `👤 ${obj.contacts[0]?.name?.formatted_name || 'Contact'}`;
+    if (obj.reaction) return obj.reaction.emoji || '👍';
+    if (obj.order) return '🛒 Order';
+
+    return '💬 Message';
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER STATUS INDICATOR
+  // ═══════════════════════════════════════════════════════════════
+  const renderStatus = () => {
+    if (!isOutgoing) return null;
+
+    const configs = {
+      sending: { icon: 'fa-clock', color: 'rgba(255,255,255,0.5)' },
+      sent: { icon: 'fa-check', color: 'rgba(255,255,255,0.7)' },
+      delivered: { icon: 'fa-check-double', color: 'rgba(255,255,255,0.7)' },
+      read: { icon: 'fa-check-double', color: '#53BDEB' },
+      failed: { icon: 'fa-exclamation-circle', color: '#EF4444' },
+    };
+
+    const config = configs[status] || configs.sent;
+
+    return (
+      <i
+        className={`fas ${config.icon}`}
+        style={{ color: config.color, fontSize: 11, marginLeft: 4 }}
+      />
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER MESSAGE FOOTER
+  // ═══════════════════════════════════════════════════════════════
+  const renderFooter = (customColor = null) => (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 4,
+      marginTop: 6,
+    }}>
+      <span style={{
+        fontSize: 11,
+        color: customColor || (isOutgoing ? 'rgba(255,255,255,0.7)' : THEME.grayLight),
+      }}>
+        {formatTime(timestamp)}
       </span>
-      <p className="text-sm text-gray-400 italic">{text || 'Template message sent'}</p>
+      {renderStatus()}
     </div>
   );
-}
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN CHAT BUBBLE
-// ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // CONTAINER WRAPPER
+  // ═══════════════════════════════════════════════════════════════
+  const MessageContainer = ({ children, customStyle = {} }) => (
+    <div style={{
+      display: 'flex',
+      justifyContent: isOutgoing ? 'flex-end' : 'flex-start',
+      marginBottom: 8,
+      padding: '0 12px',
+      animation: isOutgoing ? 'slideInRight 0.3s ease' : 'slideInLeft 0.3s ease',
+      ...customStyle,
+    }}>
+      {children}
+    </div>
+  );
 
-export default function ChatBubble({ message, showAvatar = false }) {
-  const isOutgoing = message.direction === 'outgoing';
-  const [showFullImage, setShowFullImage] = useState(false);
-  
-  // Format time
-  const time = message.timestamp 
-    ? format(new Date(message.timestamp), 'h:mm a')
-    : '';
-  
-  // Render content based on type
-  const renderContent = () => {
-    switch (message.type) {
-      case 'image':
-        return (
-          <ImageMessage
-            url={message.mediaUrl}
-            caption={message.mediaCaption || message.text}
-            onClick={() => setShowFullImage(true)}
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: BUTTON/MENU MESSAGE (Autoresponder)
+  // ═══════════════════════════════════════════════════════════════
+  const parsedButtons = parseButtons();
+  const hasButtons = parsedButtons && parsedButtons.length > 0;
+  const isButtonMessage = hasButtons || message_type === 'buttons' || message_type === 'interactive' && button_text;
+
+  if (isButtonMessage && hasButtons) {
+    const displayText = getDisplayText();
+
+    const handleClick = (btn) => {
+      if (onButtonClick) {
+        onButtonClick({
+          phone: message.phone,
+          buttonId: btn.id || btn.reply?.id || btn.title,
+          buttonTitle: btn.title || btn.text || btn.reply?.title,
+          messageId: message.message_id || message.id,
+        });
+      }
+    };
+
+    return (
+      <MessageContainer>
+        <div style={{
+          background: THEME.white,
+          borderRadius: 16,
+          maxWidth: 320,
+          overflow: 'hidden',
+          boxShadow: THEME.shadowMd,
+          border: `1px solid ${THEME.border}`,
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          {/* Gold accent bar */}
+          <div style={{
+            height: 4,
+            background: THEME.goldGradient,
+          }} />
+
+          {/* Message body */}
+          {displayText && (
+            <div style={{
+              padding: '16px 16px 12px',
+              fontSize: 15,
+              lineHeight: 1.6,
+              color: THEME.dark,
+              whiteSpace: 'pre-wrap',
+            }}>
+              {displayText}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div style={{ borderTop: `1px solid ${THEME.border}` }}>
+            {parsedButtons.map((btn, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleClick(btn)}
+                onMouseEnter={() => setButtonHover(idx)}
+                onMouseLeave={() => setButtonHover(null)}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: buttonHover === idx ? THEME.cream : THEME.white,
+                  border: 'none',
+                  borderTop: idx > 0 ? `1px solid ${THEME.border}` : 'none',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: THEME.gold,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <i className="fas fa-reply" style={{ fontSize: 12, opacity: 0.7 }} />
+                {btn.title || btn.text || btn.reply?.title || 'Option'}
+              </button>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            padding: '8px 14px',
+            background: '#FAFAFA',
+            borderTop: `1px solid ${THEME.border}`,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            {is_auto_reply && (
+              <span style={{
+                fontSize: 10,
+                color: THEME.grayLight,
+                background: THEME.cream,
+                padding: '2px 6px',
+                borderRadius: 4,
+                marginRight: 'auto',
+              }}>
+                🤖 Auto
+              </span>
+            )}
+            <span style={{ fontSize: 11, color: THEME.grayLight }}>
+              {formatTime(timestamp)}
+            </span>
+          </div>
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: PRODUCT CARD
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'product' && product) {
+    const p = typeof product === 'string' ? JSON.parse(product) : product;
+
+    return (
+      <MessageContainer>
+        <div style={{
+          background: THEME.white,
+          borderRadius: 16,
+          maxWidth: 280,
+          overflow: 'hidden',
+          boxShadow: THEME.shadowMd,
+          border: `1px solid ${THEME.border}`,
+        }}>
+          {p.image_url && (
+            <div style={{ position: 'relative' }}>
+              <img
+                src={p.image_url}
+                alt={p.name}
+                onLoad={() => setImageLoaded(true)}
+                style={{
+                  width: '100%',
+                  height: 160,
+                  objectFit: 'cover',
+                  opacity: imageLoaded ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                }}
+              />
+              {!imageLoaded && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: THEME.cream,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <i className="fas fa-image" style={{ fontSize: 32, color: THEME.grayLight }} />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ padding: 14 }}>
+            <div style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: THEME.dark,
+              marginBottom: 8,
+              lineHeight: 1.3,
+            }}>
+              {p.name || 'Product'}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 20, fontWeight: 700, color: THEME.gold }}>
+                {p.price ? formatCurrency(p.price) : ''}
+              </span>
+              {p.compare_price && p.compare_price > p.price && (
+                <>
+                  <span style={{
+                    fontSize: 13,
+                    color: THEME.grayLight,
+                    textDecoration: 'line-through',
+                  }}>
+                    {formatCurrency(p.compare_price)}
+                  </span>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: THEME.success,
+                    background: '#D1FAE5',
+                    padding: '2px 8px',
+                    borderRadius: 20,
+                  }}>
+                    {Math.round((1 - p.price / p.compare_price) * 100)}% OFF
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: THEME.cream,
+                border: `1px solid ${THEME.gold}`,
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                color: THEME.gold,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'all 0.2s ease',
+              }}>
+                <i className="fas fa-eye" /> View
+              </button>
+              <button style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: THEME.goldGradient,
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                color: THEME.white,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                boxShadow: THEME.goldShadow,
+                transition: 'all 0.2s ease',
+              }}>
+                <i className="fas fa-cart-plus" /> Add
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            padding: '8px 14px',
+            background: '#FAFAFA',
+            borderTop: `1px solid ${THEME.border}`,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}>
+            <span style={{ fontSize: 11, color: THEME.grayLight }}>
+              {formatTime(timestamp)}
+            </span>
+          </div>
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: ORDER CARD
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'order' && order) {
+    const o = typeof order === 'string' ? JSON.parse(order) : order;
+    const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+    const statusConfig = STATUS_COLORS[o.status?.toLowerCase()] || STATUS_COLORS.pending;
+
+    return (
+      <MessageContainer>
+        <div style={{
+          background: THEME.white,
+          borderRadius: 16,
+          maxWidth: 280,
+          overflow: 'hidden',
+          boxShadow: THEME.shadowMd,
+          border: `1px solid ${THEME.border}`,
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 14px',
+            background: '#FAFAFA',
+            borderBottom: `1px solid ${THEME.border}`,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: THEME.dark }}>
+              🛒 {o.order_id || 'Order'}
+            </span>
+            <span style={{
+              padding: '4px 10px',
+              borderRadius: 20,
+              fontSize: 11,
+              fontWeight: 600,
+              background: statusConfig.bg,
+              color: statusConfig.color,
+              textTransform: 'capitalize',
+            }}>
+              {statusConfig.icon} {o.status || 'Pending'}
+            </span>
+          </div>
+
+          {/* Items */}
+          {items.length > 0 && (
+            <div style={{
+              display: 'flex',
+              gap: 6,
+              padding: 12,
+              overflowX: 'auto',
+            }}>
+              {items.slice(0, 4).map((item, idx) => (
+                <img
+                  key={idx}
+                  src={item.image_url || item.image || '/placeholder.png'}
+                  alt=""
+                  style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 8,
+                    objectFit: 'cover',
+                    flexShrink: 0,
+                    border: `1px solid ${THEME.border}`,
+                  }}
+                />
+              ))}
+              {items.length > 4 && (
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 8,
+                  background: '#F3F4F6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: THEME.gray,
+                }}>
+                  +{items.length - 4}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Total */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 14px',
+            background: THEME.cream,
+            borderTop: `1px solid ${THEME.border}`,
+          }}>
+            <span style={{ fontSize: 13, color: THEME.gray }}>Total</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: THEME.gold }}>
+              {o.total ? formatCurrency(o.total) : '₹0'}
+            </span>
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            padding: '8px 14px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}>
+            <span style={{ fontSize: 11, color: THEME.grayLight }}>
+              {formatTime(timestamp)}
+            </span>
+          </div>
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: IMAGE MESSAGE
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'image' && media_url) {
+    return (
+      <MessageContainer>
+        <div style={{
+          borderRadius: 16,
+          overflow: 'hidden',
+          maxWidth: 280,
+          boxShadow: isOutgoing ? THEME.goldShadow : THEME.shadow,
+          border: isIncoming ? `1px solid ${THEME.border}` : 'none',
+        }}>
+          <img
+            src={media_url}
+            alt=""
+            onLoad={() => setImageLoaded(true)}
+            style={{
+              width: '100%',
+              maxHeight: 300,
+              objectFit: 'cover',
+              display: 'block',
+              opacity: imageLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+            }}
           />
-        );
-        
-      case 'video':
-        return (
-          <div className="space-y-2">
-            <div className="relative rounded-xl overflow-hidden bg-dark-300 w-64 h-40 flex items-center justify-center cursor-pointer">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
-                <FiPlay size={24} className="text-white ml-1" />
+
+          {media_caption && (
+            <div style={{
+              padding: '10px 12px',
+              background: isOutgoing ? THEME.goldGradient : THEME.white,
+              color: isOutgoing ? THEME.white : THEME.dark,
+              fontSize: 14,
+              lineHeight: 1.5,
+            }}>
+              {media_caption}
+            </div>
+          )}
+
+          <div style={{
+            padding: '6px 12px',
+            background: isOutgoing ? THEME.goldGradient : THEME.white,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <span style={{
+              fontSize: 11,
+              color: isOutgoing ? 'rgba(255,255,255,0.7)' : THEME.grayLight,
+            }}>
+              {formatTime(timestamp)}
+            </span>
+            {renderStatus()}
+          </div>
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: DOCUMENT MESSAGE
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'document' && media_url) {
+    const filename = message.filename || message.media_caption || 'Document';
+    const ext = filename.split('.').pop()?.toUpperCase() || 'FILE';
+    const fileConfig = FILE_ICONS[ext] || FILE_ICONS.DEFAULT;
+
+    return (
+      <MessageContainer>
+        <div style={{
+          background: THEME.white,
+          borderRadius: 16,
+          padding: 14,
+          maxWidth: 280,
+          boxShadow: THEME.shadow,
+          border: `1px solid ${THEME.border}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: 10,
+              background: `${fileConfig.color}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <i className={`fas ${fileConfig.icon}`} style={{
+                fontSize: 22,
+                color: fileConfig.color,
+              }} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: THEME.dark,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {filename}
+              </div>
+              <div style={{ fontSize: 12, color: THEME.gray, marginTop: 2 }}>
+                {ext}
               </div>
             </div>
-            {message.mediaCaption && <p className="text-sm">{message.mediaCaption}</p>}
+
+            <a
+              href={media_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: THEME.goldGradient,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: THEME.white,
+                textDecoration: 'none',
+                boxShadow: THEME.goldShadow,
+                transition: 'transform 0.2s ease',
+              }}
+            >
+              <i className="fas fa-download" style={{ fontSize: 14 }} />
+            </a>
           </div>
-        );
-        
-      case 'audio':
-        return <AudioMessage url={message.mediaUrl} />;
-        
-      case 'document':
-        return (
-          <DocumentMessage
-            url={message.mediaUrl}
-            filename={message.filename}
-            caption={message.mediaCaption}
-          />
-        );
-        
-      case 'location':
-        return (
-          <LocationMessage
-            latitude={message.latitude}
-            longitude={message.longitude}
-            name={message.locationName}
-            address={message.locationAddress}
-          />
-        );
-        
-      case 'interactive':
-      case 'buttons':
-        return <ButtonsMessage text={message.text} buttons={message.buttons} />;
-        
-      case 'template':
-        return <TemplateMessage templateName={message.templateName} text={message.text} />;
-        
-      case 'text':
-      default:
-        // Parse URLs and make them clickable
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const parts = message.text?.split(urlRegex) || [];
-        
-        return (
-          <p className="whitespace-pre-wrap break-words">
-            {parts.map((part, i) => 
-              urlRegex.test(part) ? (
-                <a
-                  key={i}
-                  href={part}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
-                >
-                  {part}
-                </a>
-              ) : (
-                <span key={i}>{part}</span>
-              )
-            )}
-          </p>
-        );
-    }
-  };
-  
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.2 }}
-        className={`flex mb-2 ${isOutgoing ? 'justify-end' : 'justify-start'}`}
-      >
-        <div
-          className={`max-w-[85%] ${
-            isOutgoing
-              ? 'bubble-outgoing bg-primary/10 text-white'
-              : 'bubble-incoming bg-dark-200 text-white'
-          } px-4 py-2.5`}
-        >
-          {/* Auto reply badge */}
-          {message.isAutoReply && (
-            <span className="text-[10px] text-gray-400 block mb-1">🤖 Auto-reply</span>
-          )}
-          
-          {/* Content */}
-          <div className="text-[15px] leading-relaxed">
-            {renderContent()}
+
+          {renderFooter(THEME.grayLight)}
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: AUDIO/VOICE MESSAGE
+  // ═══════════════════════════════════════════════════════════════
+  if ((message_type === 'audio' || message_type === 'voice') && media_url) {
+    return (
+      <MessageContainer>
+        <div style={{
+          background: isOutgoing ? THEME.goldGradient : THEME.white,
+          borderRadius: 24,
+          padding: '12px 16px',
+          maxWidth: 260,
+          boxShadow: isOutgoing ? THEME.goldShadow : THEME.shadow,
+          border: isIncoming ? `1px solid ${THEME.border}` : 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: isOutgoing ? 'rgba(255,255,255,0.2)' : THEME.goldGradient,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: isIncoming ? THEME.goldShadow : 'none',
+            }}>
+              <i className="fas fa-play" style={{
+                fontSize: 16,
+                color: THEME.white,
+                marginLeft: 3,
+              }} />
+            </div>
+
+            <div style={{
+              flex: 1,
+              height: 28,
+              background: isOutgoing ? 'rgba(255,255,255,0.25)' : '#E5E7EB',
+              borderRadius: 14,
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: '0%',
+                background: isOutgoing ? 'rgba(255,255,255,0.6)' : THEME.gold,
+                borderRadius: 14,
+                transition: 'width 0.2s ease',
+              }} />
+            </div>
+
+            <span style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: isOutgoing ? 'rgba(255,255,255,0.8)' : THEME.gray,
+              minWidth: 40,
+            }}>
+              0:00
+            </span>
           </div>
-          
-          {/* Time & Status */}
-          <div className={`flex items-center gap-1 mt-1 ${isOutgoing ? 'justify-end' : 'justify-start'}`}>
-            <span className="text-[10px] text-gray-500">{time}</span>
-            {isOutgoing && <StatusIcon status={message.status} />}
+
+          {renderFooter()}
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: INTERACTIVE REPLY (User selected a button)
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'interactive' && !hasButtons) {
+    const displayText = getDisplayText();
+
+    return (
+      <MessageContainer>
+        <div style={{
+          background: isOutgoing ? THEME.goldGradient : THEME.white,
+          borderRadius: isOutgoing ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+          padding: '10px 14px',
+          maxWidth: 300,
+          boxShadow: isOutgoing ? THEME.goldShadow : THEME.shadow,
+          border: isIncoming ? `1px solid ${THEME.border}` : 'none',
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: isOutgoing ? 'rgba(255,255,255,0.2)' : THEME.cream,
+            color: isOutgoing ? THEME.white : THEME.gold,
+            fontWeight: 600,
+            padding: '8px 14px',
+            borderRadius: 8,
+            fontSize: 14,
+            border: isIncoming ? `1px solid ${THEME.gold}30` : 'none',
+          }}>
+            <i className="fas fa-check-circle" style={{ fontSize: 14 }} />
+            {displayText || button_text || 'Selected'}
+          </div>
+
+          {renderFooter()}
+        </div>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: LOCATION MESSAGE
+  // ═══════════════════════════════════════════════════════════════
+  if (message_type === 'location') {
+    return (
+      <MessageContainer>
+        <div style={{
+          background: THEME.white,
+          borderRadius: 16,
+          overflow: 'hidden',
+          maxWidth: 280,
+          boxShadow: THEME.shadow,
+          border: `1px solid ${THEME.border}`,
+        }}>
+          <div style={{
+            height: 120,
+            background: THEME.goldGradient,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <i className="fas fa-map-marker-alt" style={{
+              fontSize: 40,
+              color: THEME.white,
+            }} />
+          </div>
+
+          <div style={{ padding: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: THEME.dark }}>
+              📍 Location Shared
+            </div>
+            <div style={{ fontSize: 13, color: THEME.gray, marginTop: 4 }}>
+              Tap to view on map
+            </div>
+          </div>
+
+          <div style={{
+            padding: '8px 12px',
+            borderTop: `1px solid ${THEME.border}`,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}>
+            <span style={{ fontSize: 11, color: THEME.grayLight }}>
+              {formatTime(timestamp)}
+            </span>
           </div>
         </div>
-      </motion.div>
-      
-      {/* Full Image Modal */}
-      {showFullImage && message.mediaUrl && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-          onClick={() => setShowFullImage(false)}
-        >
-          <img
-            src={message.mediaUrl}
-            alt="Full size"
-            className="max-w-full max-h-full object-contain"
-          />
-        </motion.div>
-      )}
-    </>
+      </MessageContainer>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER: DEFAULT TEXT MESSAGE
+  // ═══════════════════════════════════════════════════════════════
+  const displayText = getDisplayText();
+
+  if (!displayText || displayText === '[Message]') {
+    return null;
+  }
+
+  return (
+    <MessageContainer>
+      <div style={{
+        background: isOutgoing ? THEME.goldGradient : THEME.white,
+        color: isOutgoing ? THEME.white : THEME.dark,
+        borderRadius: isOutgoing ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+        padding: '10px 14px',
+        maxWidth: 320,
+        boxShadow: isOutgoing ? THEME.goldShadow : THEME.shadow,
+        border: isIncoming ? `1px solid ${THEME.border}` : 'none',
+      }}>
+        <div style={{
+          fontSize: 15,
+          lineHeight: 1.55,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+          {displayText}
+        </div>
+
+        {renderFooter()}
+      </div>
+    </MessageContainer>
   );
-}
+});
+
+export default ChatBubble;

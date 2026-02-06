@@ -1,363 +1,500 @@
 /**
- * ════════════════════════════════════════════════════════════════
- * API CLIENT
- * Centralized API communication with offline support
- * ════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════
+ * KAAPAV API - Complete WhatsApp Business API Integration
+ * With offline support, retry logic, and request queuing
+ * ═══════════════════════════════════════════════════════════════
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://kaapav-api.workers.dev';
+import { useAuthStore } from '../store';
+import { useUIStore } from '../store';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // ═══════════════════════════════════════════════════════════════
-// BASE FETCH FUNCTION
+// REQUEST HANDLER
 // ═══════════════════════════════════════════════════════════════
 
-async function fetchAPI(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-  
-  const config = {
-    ...options,
-    headers: {
+class ApiClient {
+  constructor() {
+    this.baseUrl = API_BASE;
+    this.retryAttempts = 3;
+    this.retryDelay = 1000;
+  }
+
+  getHeaders() {
+    const token = useAuthStore.getState().token;
+    return {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-  };
-  
-  if (options.body && typeof options.body === 'object') {
-    config.body = JSON.stringify(options.body);
+    };
   }
-  
-  try {
-    const response = await fetch(`${API_URL}${endpoint}`, config);
-    
-    // Handle 401 - Unauthorized
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-      throw new Error('Session expired');
-    }
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
-    }
-    
-    return data;
-  } catch (error) {
-    // Check if offline
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const { method = 'GET', body, retries = this.retryAttempts } = options;
+
+    const config = {
+      method,
+      headers: this.getHeaders(),
+      ...(body && { body: JSON.stringify(body) }),
+    };
+
+    // Check offline status
     if (!navigator.onLine) {
+      if (method !== 'GET') {
+        // Queue for later
+        this.queueOfflineRequest(endpoint, options);
+        return { success: false, offline: true, queued: true };
+      }
       throw new Error('You are offline');
     }
-    throw error;
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle 401 - Token expired
+        if (response.status === 401) {
+          useAuthStore.getState().logout();
+          throw new Error('Session expired. Please login again.');
+        }
+
+        throw new Error(data.error || `Request failed with status ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      // Retry logic for network errors
+      if (retries > 0 && error.name === 'TypeError') {
+        await this.delay(this.retryDelay);
+        return this.request(endpoint, { ...options, retries: retries - 1 });
+      }
+      throw error;
+    }
+  }
+
+  async get(endpoint) {
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async post(endpoint, body) {
+    return this.request(endpoint, { method: 'POST', body });
+  }
+
+  async put(endpoint, body) {
+    return this.request(endpoint, { method: 'PUT', body });
+  }
+
+  async patch(endpoint, body) {
+    return this.request(endpoint, { method: 'PATCH', body });
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  queueOfflineRequest(endpoint, options) {
+    const action = {
+      id: Date.now().toString(),
+      endpoint,
+      options,
+      timestamp: new Date().toISOString(),
+    };
+    useUIStore.getState().addPendingAction(action);
+  }
+
+  async processOfflineQueue() {
+    const pendingActions = useUIStore.getState().pendingActions;
+    
+    for (const action of pendingActions) {
+      try {
+        await this.request(action.endpoint, action.options);
+        useUIStore.getState().removePendingAction(action.id);
+      } catch (error) {
+        console.error('Failed to process queued action:', error);
+      }
+    }
   }
 }
+
+const api = new ApiClient();
 
 // ═══════════════════════════════════════════════════════════════
 // AUTH API
 // ═══════════════════════════════════════════════════════════════
 
-export const auth = {
-  login: (email, password) => 
-    fetchAPI('/api/auth/login', { method: 'POST', body: { email, password } }),
+export const authAPI = {
+  login: (credentials) => api.post('/api/auth/login', credentials),
   
-  logout: () => 
-    fetchAPI('/api/auth/logout', { method: 'POST' }),
+  register: (data) => api.post('/api/auth/register', data),
   
-  me: () => 
-    fetchAPI('/api/auth/me'),
+  logout: () => api.post('/api/auth/logout'),
   
-  changePassword: (currentPassword, newPassword) =>
-    fetchAPI('/api/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } }),
+  getMe: () => api.get('/api/auth/me'),
+  
+  refresh: () => api.post('/api/auth/refresh'),
+  
+  changePassword: (data) => api.post('/api/auth/change-password', data),
+  
+  // Biometric auth
+  biometricChallenge: () => api.post('/api/auth/biometric/challenge'),
+  
+  biometricVerify: (credential) => api.post('/api/auth/biometric/verify', credential),
+  
+  biometricRegister: (credential) => api.post('/api/auth/biometric/register', credential),
 };
 
 // ═══════════════════════════════════════════════════════════════
-// STATS API
+// CHAT API
 // ═══════════════════════════════════════════════════════════════
 
-export const stats = {
-  getDashboard: () => 
-    fetchAPI('/api/stats'),
-  
-  getAnalytics: (type, period) => 
-    fetchAPI(`/api/analytics?type=${type}&period=${period}`),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// CHATS API
-// ═══════════════════════════════════════════════════════════════
-
-export const chats = {
-  getAll: (params = {}) => {
+export const chatAPI = {
+  // Get all chats with pagination
+  getChats: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/chats${query ? `?${query}` : ''}`);
+    return api.get(`/api/chats${query ? `?${query}` : ''}`);
   },
   
-  getOne: (phone) => 
-    fetchAPI(`/api/chats/${phone}`),
+  // Get single chat
+  getChat: (phone) => api.get(`/api/chats/${phone}`),
   
+  // Get customer details
+  getCustomer: (phone) => api.get(`/api/customers/${phone}`),
+  
+  // Update chat (star, labels, etc.)
+  updateChat: (phone, data) => api.patch(`/api/chats/${phone}`, data),
+  
+  // Mark chat as read
+  markRead: (phone) => api.post(`/api/chats/${phone}/read`),
+  
+  // Star/unstar chat
+  toggleStar: (phone) => api.post(`/api/chats/${phone}/star`),
+  
+  // Block/unblock
+  toggleBlock: (phone) => api.post(`/api/chats/${phone}/block`),
+  
+  // Add label
+  addLabel: (phone, label) => api.post(`/api/chats/${phone}/labels`, { label }),
+  
+  // Remove label
+  removeLabel: (phone, label) => api.delete(`/api/chats/${phone}/labels/${label}`),
+  
+  // Add note
+  addNote: (phone, note) => api.post(`/api/customers/${phone}/notes`, { note }),
+  
+  // Get chat statistics
+  getStats: () => api.get('/api/chats/stats'),
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MESSAGE API
+// ═══════════════════════════════════════════════════════════════
+
+export const messageAPI = {
+  // Get messages for a chat
   getMessages: (phone, params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/chats/${phone}/messages${query ? `?${query}` : ''}`);
+    return api.get(`/api/chats/${phone}/messages${query ? `?${query}` : ''}`);
   },
   
-  markAsRead: (phone) => 
-    fetchAPI(`/api/chats/${phone}/read`, { method: 'POST' }),
+  // Send text message
+  sendText: (phone, text) => api.post('/api/messages/send', {
+    phone,
+    type: 'text',
+    text,
+  }),
   
-  update: (phone, data) => 
-    fetchAPI(`/api/chats/${phone}`, { method: 'PUT', body: data }),
+  // Send message with buttons
+  sendButtons: (phone, text, buttons) => api.post('/api/messages/send', {
+    phone,
+    type: 'buttons',
+    text,
+    buttons,
+  }),
   
-  assign: (phone, agentId) => 
-    fetchAPI(`/api/chats/${phone}/assign`, { method: 'POST', body: { agentId } }),
+  // Send list message
+  sendList: (phone, text, list) => api.post('/api/messages/send', {
+    phone,
+    type: 'list',
+    text,
+    list,
+  }),
   
-  toggleBot: (phone) => 
-    fetchAPI(`/api/chats/${phone}/toggle-bot`, { method: 'POST' }),
+  // Send image
+  sendImage: (phone, mediaUrl, caption) => api.post('/api/messages/send', {
+    phone,
+    type: 'image',
+    mediaUrl,
+    mediaCaption: caption,
+  }),
   
-  updateLabels: (phone, labels) => 
-    fetchAPI(`/api/chats/${phone}/labels`, { method: 'POST', body: { labels } }),
+  // Send document
+  sendDocument: (phone, mediaUrl, filename, caption) => api.post('/api/messages/send', {
+    phone,
+    type: 'document',
+    mediaUrl,
+    filename,
+    mediaCaption: caption,
+  }),
+  
+  // Send template
+  sendTemplate: (phone, templateName, params, language = 'en') => api.post('/api/messages/send-template', {
+    phone,
+    templateName,
+    params,
+    language,
+  }),
+  
+  // Send product
+  sendProduct: (phone, productSku) => api.post('/api/messages/send-product', {
+    phone,
+    sku: productSku,
+  }),
+  
+  // Send order update
+  sendOrderUpdate: (phone, orderId, status) => api.post('/api/messages/send-order-update', {
+    phone,
+    orderId,
+    status,
+  }),
+  
+  // Bulk send (small batches)
+  bulkSend: (phones, message) => api.post('/api/messages/bulk-send', {
+    phones,
+    ...message,
+  }),
+  
+  // Mark as read (WhatsApp)
+  markRead: (messageId) => api.post('/api/messages/mark-read', { messageId }),
 };
 
 // ═══════════════════════════════════════════════════════════════
-// MESSAGES API
+// ORDER API
 // ═══════════════════════════════════════════════════════════════
 
-export const messages = {
-  send: (phone, type, content) => 
-    fetchAPI('/api/messages/send', { method: 'POST', body: { phone, type, ...content } }),
-  
-  sendTemplate: (phone, templateName, params) => 
-    fetchAPI('/api/messages/send-template', { method: 'POST', body: { phone, templateName, params } }),
-  
-  getQuickReplies: (category) => 
-    fetchAPI(`/api/messages/quick-replies${category ? `?category=${category}` : ''}`),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// ORDERS API
-// ═══════════════════════════════════════════════════════════════
-
-export const orders = {
-  getAll: (params = {}) => {
+export const orderAPI = {
+  // Get all orders
+  getOrders: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/orders${query ? `?${query}` : ''}`);
+    return api.get(`/api/orders${query ? `?${query}` : ''}`);
   },
   
-  getOne: (orderId) => 
-    fetchAPI(`/api/orders/${orderId}`),
+  // Get single order
+  getOrder: (orderId) => api.get(`/api/orders/${orderId}`),
   
-  getStats: (period) => 
-    fetchAPI(`/api/orders/stats?period=${period || 'today'}`),
+  // Create order (from chat)
+  createOrder: (data) => api.post('/api/orders', data),
   
-  create: (data) => 
-    fetchAPI('/api/orders', { method: 'POST', body: data }),
+  // Update order status
+  updateStatus: (orderId, status, notes) => api.patch(`/api/orders/${orderId}/status`, {
+    status,
+    notes,
+  }),
   
-  update: (orderId, data) => 
-    fetchAPI(`/api/orders/${orderId}`, { method: 'PUT', body: data }),
+  // Confirm order
+  confirm: (orderId) => api.post(`/api/orders/${orderId}/confirm`),
   
-  confirm: (orderId) => 
-    fetchAPI(`/api/orders/${orderId}/confirm`, { method: 'POST' }),
+  // Cancel order
+  cancel: (orderId, reason) => api.post(`/api/orders/${orderId}/cancel`, { reason }),
   
-  ship: (orderId, data) => 
-    fetchAPI(`/api/orders/${orderId}/ship`, { method: 'POST', body: data }),
+  // Create payment link
+  createPaymentLink: (orderId) => api.post(`/api/orders/${orderId}/payment-link`),
   
-  cancel: (orderId, reason) => 
-    fetchAPI(`/api/orders/${orderId}/cancel`, { method: 'POST', body: { reason } }),
+  // Ship order (create shipment)
+  ship: (orderId, shipmentData) => api.post(`/api/orders/${orderId}/ship`, shipmentData),
   
-  generatePaymentLink: (orderId) => 
-    fetchAPI(`/api/orders/${orderId}/payment-link`, { method: 'POST' }),
+  // Get tracking info
+  getTracking: (orderId) => api.get(`/api/orders/${orderId}/tracking`),
   
-  sendNotification: (orderId, type) => 
-    fetchAPI(`/api/orders/${orderId}/send-notification`, { method: 'POST', body: { type } }),
+  // Add internal note
+  addNote: (orderId, note) => api.post(`/api/orders/${orderId}/notes`, { note }),
+  
+  // Get order stats
+  getStats: () => api.get('/api/orders/stats'),
 };
 
 // ═══════════════════════════════════════════════════════════════
-// PRODUCTS API
+// PRODUCT API
 // ═══════════════════════════════════════════════════════════════
 
-export const products = {
-  getAll: (params = {}) => {
+export const productAPI = {
+  // Get all products
+  getProducts: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/products${query ? `?${query}` : ''}`);
+    return api.get(`/api/products${query ? `?${query}` : ''}`);
   },
   
-  getOne: (sku) => 
-    fetchAPI(`/api/products/${sku}`),
+  // Get single product
+  getProduct: (sku) => api.get(`/api/products/${sku}`),
   
-  getCategories: () => 
-    fetchAPI('/api/products/categories'),
+  // Create product
+  createProduct: (data) => api.post('/api/products', data),
   
-  getLowStock: (threshold) => 
-    fetchAPI(`/api/products/low-stock?threshold=${threshold || 10}`),
+  // Update product
+  updateProduct: (sku, data) => api.patch(`/api/products/${sku}`, data),
   
-  create: (data) => 
-    fetchAPI('/api/products', { method: 'POST', body: data }),
+  // Update stock
+  updateStock: (sku, stock) => api.patch(`/api/products/${sku}/stock`, { stock }),
   
-  update: (sku, data) => 
-    fetchAPI(`/api/products/${sku}`, { method: 'PUT', body: data }),
+  // Delete product
+  deleteProduct: (sku) => api.delete(`/api/products/${sku}`),
   
-  delete: (sku) => 
-    fetchAPI(`/api/products/${sku}`, { method: 'DELETE' }),
+  // Get categories
+  getCategories: () => api.get('/api/products/categories'),
   
-  updateStock: (sku, action, quantity, reason) => 
-    fetchAPI(`/api/products/${sku}/stock`, { method: 'POST', body: { action, quantity, reason } }),
+  // Search products
+  search: (query) => api.get(`/api/products/search?q=${encodeURIComponent(query)}`),
 };
 
 // ═══════════════════════════════════════════════════════════════
-// CUSTOMERS API
+// DASHBOARD/ANALYTICS API
 // ═══════════════════════════════════════════════════════════════
 
-export const customers = {
-  getAll: (params = {}) => {
+export const dashboardAPI = {
+  // Get dashboard stats
+  getStats: () => api.get('/api/stats'),
+  
+  // Get detailed analytics
+  getAnalytics: (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/customers${query ? `?${query}` : ''}`);
+    return api.get(`/api/analytics${query ? `?${query}` : ''}`);
   },
   
-  getOne: (phone) => 
-    fetchAPI(`/api/customers/${phone}`),
+  // Get recent activities
+  getActivities: (limit = 20) => api.get(`/api/analytics/activities?limit=${limit}`),
   
-  update: (phone, data) => 
-    fetchAPI(`/api/customers/${phone}`, { method: 'PUT', body: data }),
+  // Get pending actions
+  getPendingActions: () => api.get('/api/analytics/pending'),
 };
-
-// ═══════════════════════════════════════════════════════════════
-// BROADCASTS API
-// ═══════════════════════════════════════════════════════════════
-
-export const broadcasts = {
-  getAll: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/broadcasts${query ? `?${query}` : ''}`);
-  },
-  
-  getOne: (broadcastId) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}`),
-  
-  create: (data) => 
-    fetchAPI('/api/broadcasts', { method: 'POST', body: data }),
-  
-  update: (broadcastId, data) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}`, { method: 'PUT', body: data }),
-  
-  delete: (broadcastId) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}`, { method: 'DELETE' }),
-  
-  start: (broadcastId) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}/send`, { method: 'POST' }),
-  
-  pause: (broadcastId) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}/pause`, { method: 'POST' }),
-  
-  resume: (broadcastId) => 
-    fetchAPI(`/api/broadcasts/${broadcastId}/resume`, { method: 'POST' }),
-  
-  getRecipients: (broadcastId, params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return fetchAPI(`/api/broadcasts/${broadcastId}/recipients${query ? `?${query}` : ''}`);
-  },
-  
-  previewTargets: (targetType, targetLabels, targetSegment, targetFilters) => 
-    fetchAPI('/api/broadcasts/preview', { method: 'POST', body: { targetType, targetLabels, targetSegment, targetFilters } }),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// LABELS API
-// ═══════════════════════════════════════════════════════════════
-
-export const labels = {
-  getAll: () => 
-    fetchAPI('/api/labels'),
-  
-  create: (name, color, description) => 
-    fetchAPI('/api/labels', { method: 'POST', body: { name, color, description } }),
-  
-  delete: (id) => 
-    fetchAPI(`/api/labels/${id}`, { method: 'DELETE' }),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// TEMPLATES API
-// ═══════════════════════════════════════════════════════════════
-
-export const templates = {
-  getAll: () => 
-    fetchAPI('/api/templates'),
-  
-  create: (data) => 
-    fetchAPI('/api/templates', { method: 'POST', body: data }),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// QUICK REPLIES API
-// ═══════════════════════════════════════════════════════════════
-
-export const quickReplies = {
-  getAll: () => 
-    fetchAPI('/api/quick-replies'),
-  
-  create: (data) => 
-    fetchAPI('/api/quick-replies', { method: 'POST', body: data }),
-  
-  delete: (id) => 
-    fetchAPI(`/api/quick-replies/${id}`, { method: 'DELETE' }),
-};
-
-// ═══════════════════════════════════════════════════════════════
-// SHIPPING API
-// ═══════════════════════════════════════════════════════════════
-
-export const shipping = {
-  checkServiceability: (pickupPincode, deliveryPincode, weight, cod) => 
-    fetchAPI('/api/shipping/check', { method: 'POST', body: { pickupPincode, deliveryPincode, weight, cod } }),
-  
-  getCouriers: (pickupPincode, deliveryPincode, weight, cod) => 
-    fetchAPI(`/api/shipping/couriers?pickup=${pickupPincode}&delivery=${deliveryPincode}&weight=${weight}&cod=${cod}`),
-  
-  createShipment: (orderId, courierId) => 
-    fetchAPI('/api/shipping/create', { method: 'POST', body: { orderId, courierId } }),
-  
-  track: (awb) => 
-    fetchAPI(`/api/shipping/track/${awb}`),
-  
-  getLabel: (shipmentId) => 
-    fetchAPI(`/api/shipping/label/${shipmentId}`),
-};
-
+ 
 // ═══════════════════════════════════════════════════════════════
 // SETTINGS API
 // ═══════════════════════════════════════════════════════════════
 
-export const settings = {
-  get: () => 
-    fetchAPI('/api/settings'),
+export const settingsAPI = {
+  get: async () => {
+    const res = await fetch(`${API_BASE}/api/settings`, { headers: getHeaders() });
+    return res.json();
+  },
+  update: async (data) => {
+    const res = await fetch(`${API_BASE}/api/settings`, {
+      method: 'PUT', headers: getHeaders(), body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+  testWhatsApp: async (phone) => {
+    const res = await fetch(`${API_BASE}/api/settings/test-whatsapp`, {
+      method: 'POST', headers: getHeaders(), body: JSON.stringify({ phone })
+    });
+    return res.json();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK REPLIES & TEMPLATES API
+// ═══════════════════════════════════════════════════════════════
+
+export const templateAPI = {
+  // Quick Replies
+  getQuickReplies: () => api.get('/api/quick-replies'),
+  createQuickReply: (data) => api.post('/api/quick-replies', data),
+  updateQuickReply: (id, data) => api.patch(`/api/quick-replies/${id}`, data),
+  deleteQuickReply: (id) => api.delete(`/api/quick-replies/${id}`),
   
-  update: (data) => 
-    fetchAPI('/api/settings', { method: 'PUT', body: data }),
+  // Templates
+  getTemplates: () => api.get('/api/templates'),
+  createTemplate: (data) => api.post('/api/templates', data),
+  
+  // Labels
+  getLabels: () => api.get('/api/labels'),
+  createLabel: (data) => api.post('/api/labels', data),
+  deleteLabel: (id) => api.delete(`/api/labels/${id}`),
+};
+
+// ═══════════════════════════════════════════════════════════════
+// BROADCAST API
+// ═══════════════════════════════════════════════════════════════
+
+export const broadcastAPI = {
+  getBroadcasts: () => api.get('/api/broadcasts'),
+  
+  getBroadcast: (id) => api.get(`/api/broadcasts/${id}`),
+  
+  createBroadcast: (data) => api.post('/api/broadcasts', data),
+  
+  startBroadcast: (id) => api.post(`/api/broadcasts/${id}/start`),
+  
+  cancelBroadcast: (id) => api.post(`/api/broadcasts/${id}/cancel`),
+  
+  getRecipients: (id) => api.get(`/api/broadcasts/${id}/recipients`),
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// PAYMENT API
+// ═══════════════════════════════════════════════════════════════
+
+export const paymentAPI = {
+  createLink: (orderId, amount) => api.post('/api/payments/create-link', {
+    orderId,
+    amount,
+  }),
+  
+  getStatus: (paymentId) => api.get(`/api/payments/${paymentId}`),
+  
+  refund: (paymentId, amount) => api.post(`/api/payments/${paymentId}/refund`, { amount }),
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SHIPPING API (Shiprocket)
+// ═══════════════════════════════════════════════════════════════
+
+export const shippingAPI = {
+  checkServiceability: (pincode) => api.get(`/api/shipping/serviceability/${pincode}`),
+  
+  createShipment: (orderId, data) => api.post(`/api/shipping/create`, {
+    orderId,
+    ...data,
+  }),
+  
+  getTracking: (awbNumber) => api.get(`/api/shipping/track/${awbNumber}`),
+  
+  generateLabel: (shipmentId) => api.get(`/api/shipping/label/${shipmentId}`),
+  
+  cancelShipment: (shipmentId) => api.post(`/api/shipping/cancel/${shipmentId}`),
 };
 
 // ═══════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS API
 // ═══════════════════════════════════════════════════════════════
 
-export const push = {
-  subscribe: (subscription) => 
-    fetchAPI('/api/push/subscribe', { method: 'POST', body: subscription }),
+export const pushAPI = {
+  subscribe: (subscription) => api.post('/api/push/subscribe', subscription),
+  
+  unsubscribe: () => api.post('/api/push/unsubscribe'),
+  
+  test: () => api.post('/api/push/test'),
 };
 
-// Export all
-export default {
-  auth,
-  stats,
-  chats,
-  messages,
-  orders,
-  products,
-  customers,
-  broadcasts,
-  labels,
-  templates,
-  quickReplies,
-  shipping,
-  settings,
-  push,
-};
+// ═══════════════════════════════════════════════════════════════
+// EXPORT DEFAULT CLIENT FOR ADVANCED USE
+// ═══════════════════════════════════════════════════════════════
+
+export default api;
+
+// Process offline queue when back online
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    useUIStore.getState().setOffline(false);
+    api.processOfflineQueue();
+  });
+  
+  window.addEventListener('offline', () => {
+    useUIStore.getState().setOffline(true);
+  });
+}

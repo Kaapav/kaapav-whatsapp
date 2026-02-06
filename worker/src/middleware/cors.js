@@ -106,7 +106,12 @@ export function corsMiddleware(options = DEFAULT_CORS_OPTIONS) {
     return newResponse;
   };
 }
-
+ 
+// Allow requests from your frontend
+const allowedOrigins = [
+  'https://app.kaapav.com',
+  'http://localhost:3000', // for local development
+];
 // ═════════════════════════════════════════════════════════════════
 // SIMPLE CORS HEADERS OBJECT (For direct use)
 // ═════════════════════════════════════════════════════════════════

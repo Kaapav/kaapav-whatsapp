@@ -1,81 +1,113 @@
-├── worker/ # Cloudflare Worker Backend
-│ ├── wrangler.toml
-│ ├── package.json
-│ ├── schema.sql
-│ └── src/
-│ ├── index.js # Main router
-│ ├── config.js # Configuration
-│ ├── middleware/
-│ │ ├── auth.js
-│ │ ├── rateLimit.js
-│ │ └── cors.js
-│ ├── handlers/
-│ │ ├── webhook.js # WhatsApp webhook
-│ │ ├── auth.js # Authentication
-│ │ ├── chat.js # Chat operations
-│ │ ├── message.js # Send messages
-│ │ ├── order.js # Order management
-│ │ ├── product.js # Product catalog
-│ │ ├── payment.js # Razorpay integration
-│ │ ├── shipping.js # Shiprocket integration
-│ │ ├── broadcast.js # Campaign management
-│ │ ├── automation.js # Workflow automation
-│ │ └── analytics.js # Dashboard stats
-│ ├── services/
-│ │ ├── whatsapp.js # WhatsApp API
-│ │ ├── razorpay.js # Payment gateway
-│ │ ├── shiprocket.js # Shipping API
-│ │ └── push.js # Push notifications
-│ ├── flows/
-│ │ ├── orderFlow.js # Order conversation flow
-│ │ ├── catalogFlow.js # Product browsing flow
-│ │ └── supportFlow.js # Customer support flow
-│ └── cron/
-│ ├── cartRecovery.js # Abandoned cart
-│ ├── orderReminders.js # Payment reminders
-│ └── campaigns.js # Scheduled broadcasts
+Kaapav-Whatsapp/
 │
-├── frontend/ # React PWA
-│ ├── public/
-│ │ ├── manifest.json
-│ │ ├── sw.js # Service Worker (offline)
-│ │ └── icons/
-│ ├── src/
-│ │ ├── main.jsx
-│ │ ├── App.jsx
-│ │ ├── index.css
-│ │ ├── api/
-│ │ │ └── index.js
-│ │ ├── store/
-│ │ │ └── index.js # Zustand stores
-│ │ ├── screens/
-│ │ │ ├── Login.jsx
-│ │ │ ├── Dashboard.jsx
-│ │ │ ├── Chats.jsx
-│ │ │ ├── ChatWindow.jsx
-│ │ │ ├── Orders.jsx
-│ │ │ ├── Products.jsx
-│ │ │ ├── Customers.jsx
-│ │ │ ├── Broadcasts.jsx
-│ │ │ ├── Analytics.jsx
-│ │ │ └── Settings.jsx
-│ │ ├── components/
-│ │ │ ├── BottomNav.jsx
-│ │ │ ├── ChatBubble.jsx
-│ │ │ ├── ProductCard.jsx
-│ │ │ ├── OrderCard.jsx
-│ │ │ ├── QuickReplies.jsx
-│ │ │ ├── MediaPicker.jsx
-│ │ │ └── PullToRefresh.jsx
-│ │ └── utils/
-│ │ ├── helpers.js
-│ │ ├── offline.js
-│ │ └── push.js
-│ ├── package.json
-│ ├── vite.config.js
-│ └── tailwind.config.js
+├── docs/
+│   └── SETUP.md
 │
-└── docs/
-├── SETUP.md
+├── frontend/
+│   ├── public/
+│   │   ├── icons/
+│   │   │   ├── icon-192x192.png
+│   │   │   └── icon-512x512.png
+│   │   ├── favicon.svg
+│   │   ├── manifest.json
+│   │   └── sw.js
+│   │
+│   └── src/
+│       ├── api/
+│       │   └── index.js
+│       │
+│       ├── components/
+│       │   ├── BottomNav.jsx
+│       │   ├── ChatBubble.jsx
+│       │   ├── ChatItem.jsx
+│       │   ├── CustomerPanel.jsx
+│       │   ├── LoadingScreen.jsx
+│       │   ├── MediaPicker.jsx
+│       │   ├── Modal.jsx
+│       │   ├── OfflineBanner.jsx
+│       │   ├── OrderCard.jsx
+│       │   ├── ProductCard.jsx
+│       │   ├── PullToRefresh.jsx
+│       │   ├── QuickReplies.jsx
+│       │   └── Toast.jsx
+│       │
+│       ├── screens/
+│       │   ├── Analytics.jsx
+│       │   ├── Broadcasts.jsx
+│       │   ├── ChatWindow.jsx
+│       │   ├── Chats.jsx
+│       │   ├── Customers.jsx
+│       │   ├── Dashboard.jsx
+│       │   ├── Login.jsx
+│       │   ├── OrderDetail.jsx
+│       │   ├── Orders.jsx
+│       │   ├── ProductDetail.jsx
+│       │   ├── Products.jsx
+│       │   └── Settings.jsx
+│       │
+│       ├── store/
+│       │   └── index.js
+│       │
+│       ├── utils/
+│       │   ├── biometric.js
+│       │   ├── buttonHandler.js
+│       │   ├── helpers.js
+│       │   ├── offline.js
+│       │   └── push.js
+│       │
+│       ├── App.jsx
+│       ├── index.css
+│       ├── main.jsx
+│       └── index.html
+│
+├── worker/
+│   ├── cron/
+│   │   ├── campaigns.js
+│   │   ├── cartRecovery.js
+│   │   ├── orderReminders.js
+│   │   └── index.js
+│   │
+│   ├── flows/
+│   │   ├── catalogFlow.js
+│   │   ├── orderFlow.js
+│   │   └── supportFlow.js
+│   │
+│   ├── handlers/
+│   │   ├── analytics.js
+│   │   ├── auth.js
+│   │   ├── automation.js
+│   │   ├── broadcast.js
+│   │   ├── chat.js
+│   │   ├── customer.js
+│   │   ├── media.js
+│   │   ├── message.js
+│   │   ├── order.js
+│   │   ├── payment.js
+│   │   ├── product.js
+│   │   ├── settings.js
+│   │   ├── shipping.js
+│   │   ├── template.js
+│   │   └── webhook.js
+│   │
+│   ├── middleware/
+│   │   ├── auth.js
+│   │   ├── cors.js
+│   │   └── rateLimit.js
+│   │
+│   ├── services/
+│   │   ├── autoresponder.js
+│   │   ├── menus.js
+│   │   ├── push.js
+│   │   ├── razorpay.js
+│   │   ├── shiprocket.js
+│   │   └── whatsapp.js
+│   │
+│   ├── config.js
+│   └── index.js
+│
+├── schema.sql
+├── wrangler.toml
+├── API.md
 ├── DEPLOYMENT.md
-└── API.md
+├── package.json
+└── package-lock.json
